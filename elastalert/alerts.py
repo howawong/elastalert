@@ -794,6 +794,8 @@ class SlackAlerter(Alerter):
         self.slack_msg_color = self.rule.get('slack_msg_color', 'danger')
         self.slack_parse_override = self.rule.get('slack_parse_override', 'none')
         self.slack_text_string = self.rule.get('slack_text_string', '')
+        self.slack_kibana_host = self.rule.get('slack_kibana_host', '')
+        self.slack_kibana_index = self.rule.get('slack_kibana_index', '')
 
     def format_body(self, body):
         # https://api.slack.com/docs/formatting
@@ -803,10 +805,39 @@ class SlackAlerter(Alerter):
         body = body.replace('>', '&gt;')
         return body
 
+    def create_alert_body(self, matches):
+        #for match in matches:
+            #body += unicode(BasicMatchString(self.rule, match))
+            # Separate text of aggregated alerts with dashes
+            #if len(matches) > 1:
+            #    body += '\n----------------------------------------\n'
+        d = {}
+        for match in matches:
+            print match.items()
+            for k, v in match.items():
+                d[k] =  v
+
+        for k, v in d.items():
+            if k == "_id":
+                doc_id = v
+            if k == "_index":
+                doc_index = v
+        
+        body = 'There is an error at *%s*\n' % (d["host"])
+        body += "Please check at <%s/app/kibana#/doc/%s/%s/%s?id=%s|Kibana> " % (self.slack_kibana_host, self.slack_kibana_index, d["_index"], d["_type"], d["_id"])
+        body += "\n\n\n\nFields:\n"
+        field_body = ""
+        for k, v in d.items():
+            if k in ["@timestamp", "@version", "_type", "beat", "_index", "@thread", "count", "_id", "fields", "tags", "type", "offset"]:
+                continue
+            field_body += unicode(k + ":" ) + unicode(v) + "\n"
+        body += self.format_body(field_body).decode("utf-8", "ignore")
+        return body
+
+
     def alert(self, matches):
         body = self.create_alert_body(matches)
-
-        body = self.format_body(body)
+        #body = self.format_body(body)
         # post to slack
         headers = {'content-type': 'application/json'}
         # set https proxy, if it was provided
@@ -817,6 +848,7 @@ class SlackAlerter(Alerter):
             'icon_emoji': self.slack_emoji_override,
             'parse': self.slack_parse_override,
             'text': self.slack_text_string,
+            'mrkdwn': True,
             'attachments': [
                 {
                     'color': self.slack_msg_color,
