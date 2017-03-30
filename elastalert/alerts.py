@@ -823,7 +823,7 @@ class SlackAlerter(Alerter):
             if k == "_index":
                 doc_index = v
         
-        body = 'There is an error at *%s*\n' % (d["host"])
+        body = 'There is an error at *%s*\n' % (d.get("host", "no_host"))
         body += "Please check at <%s/app/kibana#/doc/%s/%s/%s?id=%s|Kibana> " % (self.slack_kibana_host, self.slack_kibana_index, d["_index"], d["_type"], d["_id"])
         body += "\n\n\n\nFields:\n"
         field_body = ""
